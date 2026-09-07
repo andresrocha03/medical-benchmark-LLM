@@ -1,0 +1,7 @@
+# Data files
+data/pre-processed/*
+data/raw/*
+
+
+# Environment files
+venv/*
