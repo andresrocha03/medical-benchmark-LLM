@@ -1,5 +1,7 @@
 ### Diabetes preprocessing
 
+[Data](https://archive.ics.uci.edu/dataset/34/diabetes)
+
 The script transforms 70 raw diabetes patient logs into ML-ready dataset. The steps are:
 
 1. Load raw data
