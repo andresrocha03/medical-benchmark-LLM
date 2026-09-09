@@ -5,3 +5,6 @@ data/raw/*
 
 # Environment files
 venv/*
+
+# Others
+token.txt
