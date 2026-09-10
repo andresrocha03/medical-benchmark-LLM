@@ -8,3 +8,4 @@ venv/*
 
 # Others
 token.txt
+__pycache__/
