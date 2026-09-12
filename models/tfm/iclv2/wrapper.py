@@ -2,13 +2,10 @@
 
 from time import perf_counter
 
-import numpy as np
-from sklearn.metrics import (
-    accuracy_score,
-    f1_score,
-    precision_score,
-    recall_score,
-    roc_auc_score,
+from models.utils import (
+    compute_binary_metrics,
+    predictions_from_probabilities,
+    select_positive_probabilities,
 )
 
 # TabICLv2 is distributed through the ``tabicl`` package.
@@ -21,7 +18,6 @@ except ImportError as error:
 
 
 RANDOM_STATE = 42
-POSITIVE_THRESHOLD = 0.5
 CHECKPOINT_VERSION = "tabicl-classifier-v2-20260212.ckpt"
 
 
@@ -58,12 +54,9 @@ class TabICLv2Evaluator:
     def predict_positive_probability(self, X):
         """Return the probability assigned to the benchmark's positive class."""
         probabilities = self.classifier.predict_proba(X)
-        positive_class_indices = np.flatnonzero(self.classifier.classes_ == 1)
-        if probabilities.shape[1] != 2 or len(positive_class_indices) != 1:
-            raise ValueError(
-                "TabICLv2 evaluation requires binary labels with positive class 1."
-            )
-        return probabilities[:, positive_class_indices[0]]
+        return select_positive_probabilities(
+            probabilities, self.classifier.classes_
+        )
 
     def evaluate(self, X_train, y_train, X_test, y_test):
         """Fit on training data and compute held-out benchmark metrics."""
@@ -76,26 +69,16 @@ class TabICLv2Evaluator:
         prediction_start = perf_counter()
         positive_probabilities = self.predict_positive_probability(X_test)
         prediction_time_seconds = perf_counter() - prediction_start
-        predictions = (
-            positive_probabilities >= POSITIVE_THRESHOLD
-        ).astype(int)
+        predictions = predictions_from_probabilities(positive_probabilities)
 
         # Use the same fixed threshold and metric definitions as the other
         # benchmark pipelines. Test labels do not influence model selection.
         metrics = {
             "train_time_seconds": train_time_seconds,
             "prediction_time_seconds": prediction_time_seconds,
-            "test_f1_macro": f1_score(
-                y_test, predictions, average="macro", zero_division=0
+            **compute_binary_metrics(
+                y_test, predictions, positive_probabilities
             ),
-            "test_accuracy": accuracy_score(y_test, predictions),
-            "test_precision": precision_score(
-                y_test, predictions, zero_division=0
-            ),
-            "test_recall": recall_score(
-                y_test, predictions, zero_division=0
-            ),
-            "test_auc": roc_auc_score(y_test, positive_probabilities),
         }
         return predictions, positive_probabilities, metrics
 

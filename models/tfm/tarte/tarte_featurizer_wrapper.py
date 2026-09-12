@@ -1,30 +1,57 @@
-"""XGBoost classification on frozen, YAGO-pretrained TARTE features."""
-from xgboost import XGBClassifier
+"""XGBoost classification on features from the official frozen TARTE model."""
 
-try:
-    from .pretrained import extract_features
-except ImportError:
-    from pretrained import extract_features
+import numpy as np
+from sklearn.pipeline import Pipeline
+from tarte_ai import TARTE_TableEncoder, TARTE_TablePreprocessor
+from xgboost import XGBClassifier
 
 
 class TARTEFeaturizerEvaluator:
-    def __init__(self, backbone, device):
-        self.backbone = backbone.eval().requires_grad_(False)
-        self.device = device
-        self.classifier = XGBClassifier(
-            n_estimators=200, max_depth=3, learning_rate=0.05,
-            subsample=0.8, colsample_bytree=0.8, objective="binary:logistic",
-            eval_metric="logloss", tree_method="hist", random_state=42, n_jobs=1,
+    """Official frozen TARTE featurizer followed by XGBoost."""
+
+    def __init__(self, device="cpu", layer_index=2):
+        self.pipeline = Pipeline(
+            [
+                ("prep", TARTE_TablePreprocessor()),
+                (
+                    "tabenc",
+                    TARTE_TableEncoder(
+                        layer_index=layer_index,
+                        device=device,
+                    ),
+                ),
+                (
+                    "estimator",
+                    XGBClassifier(
+                        n_estimators=200,
+                        max_depth=3,
+                        learning_rate=0.05,
+                        subsample=0.8,
+                        colsample_bytree=0.8,
+                        objective="binary:logistic",
+                        eval_metric="logloss",
+                        tree_method="hist",
+                        random_state=42,
+                        n_jobs=1,
+                    ),
+                ),
+            ]
         )
 
-    def fit(self, rows, y_train):
-        features = extract_features(self.backbone, rows, self.device)
-        self.classifier.fit(features, y_train)
+    @property
+    def classifier(self):
+        return self.pipeline.named_steps["estimator"]
+
+    def fit(self, X_train, y_train):
+        self.pipeline.fit(X_train, y_train)
         return self
 
-    def predict_proba(self, rows):
-        features = extract_features(self.backbone, rows, self.device)
-        return self.classifier.predict_proba(features)[:, 1]
+    def predict_with_probabilities(self, X):
+        """Transform once, then return labels and positive-class probabilities."""
+        features = self.pipeline[:-1].transform(X)
+        predictions = self.classifier.predict(features)
+        probabilities = self.classifier.predict_proba(features)[:, 1]
+        return np.asarray(predictions, dtype=np.int64), np.asarray(probabilities)
 
-    def predict(self, rows):
-        return (self.predict_proba(rows) >= 0.5).astype(int)
+    def predict(self, X):
+        return self.pipeline.predict(X)

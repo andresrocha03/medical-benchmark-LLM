@@ -2,19 +2,15 @@ import math
 from time import perf_counter
 
 import numpy as np
-from sklearn.metrics import (
-    accuracy_score,
-    f1_score,
-    precision_score,
-    recall_score,
-    roc_auc_score,
+
+from models.utils import (
+    compute_binary_metrics,
+    predictions_from_probabilities,
+    select_positive_probabilities,
 )
 
 # pyrefly: ignore [missing-import]
 from tabpfn import TabPFNClassifier
-
-
-POSITIVE_THRESHOLD = 0.5
 
 
 class TabPFNEvaluator:
@@ -49,22 +45,16 @@ class TabPFNEvaluator:
         probs = self._batched_predict_proba(X_test)
         prediction_time_seconds = perf_counter() - prediction_start_time
 
-        positive_class_indices = np.flatnonzero(self.classifier.classes_ == 1)
-        if probs.shape[1] != 2 or len(positive_class_indices) != 1:
-            raise ValueError("Evaluation requires binary labels with positive class 1.")
-        positive_probabilities = probs[:, positive_class_indices[0]]
-        predictions = (positive_probabilities >= POSITIVE_THRESHOLD).astype(int)
-
+        positive_probabilities = select_positive_probabilities(
+            probs, self.classifier.classes_
+        )
+        predictions = predictions_from_probabilities(positive_probabilities)
         metrics = {
             "train_time_seconds": train_time_seconds,
             "prediction_time_seconds": prediction_time_seconds,
-            "test_f1_macro": f1_score(
-                y_test, predictions, average="macro", zero_division=0
+            **compute_binary_metrics(
+                y_test, predictions, positive_probabilities
             ),
-            "test_accuracy": accuracy_score(y_test, predictions),
-            "test_precision": precision_score(y_test, predictions, zero_division=0),
-            "test_recall": recall_score(y_test, predictions, zero_division=0),
-            "test_auc": roc_auc_score(y_test, positive_probabilities),
         }
         return predictions, metrics
 

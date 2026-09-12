@@ -1,25 +1,13 @@
 """Cross-validated XGBoost wrapper for the traditional-model benchmark."""
 
-from sklearn.metrics import f1_score, make_scorer, precision_score
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from xgboost import XGBClassifier
+
+from models.utils import CROSS_VALIDATION_SCORING
 
 
 RANDOM_STATE = 42
 CV_FOLDS = 5
-
-# GridSearchCV evaluates every configuration with the complete benchmark metric
-# set, while macro-F1 determines which fitted model is retained.
-SCORING = {
-    "f1_macro": make_scorer(
-        f1_score, average="macro", zero_division=0
-    ),
-    "accuracy": "accuracy",
-    "precision": make_scorer(precision_score, zero_division=0),
-    "recall": "recall",
-    "auc": "roc_auc",
-}
-
 
 class XGBoostEvaluator:
     """Tune XGBoost on training folds and expose the selected estimator."""
@@ -61,7 +49,7 @@ class XGBoostEvaluator:
         return GridSearchCV(
             estimator=estimator,
             param_grid=parameter_grid,
-            scoring=SCORING,
+            scoring=CROSS_VALIDATION_SCORING,
             refit="f1_macro",
             cv=cross_validation,
             n_jobs=self.search_jobs,
@@ -87,7 +75,7 @@ class XGBoostEvaluator:
         best_index = self.search_.best_index_
         return {
             metric: self.search_.cv_results_[f"mean_test_{metric}"][best_index]
-            for metric in SCORING
+            for metric in CROSS_VALIDATION_SCORING
         }
 
     def predict_proba(self, X):

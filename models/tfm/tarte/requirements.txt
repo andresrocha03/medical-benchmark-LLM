@@ -3,5 +3,5 @@ pandas
 torch
 scikit-learn
 matplotlib
+tarte-ai==0.0.6
 xgboost
-fasttext-wheel>=0.9.2
