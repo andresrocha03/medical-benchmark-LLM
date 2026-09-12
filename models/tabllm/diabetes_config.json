@@ -1,0 +1,52 @@
+{
+  "input_files": {
+    "train": "data/pre-processed/serialization/diabetes_train.csv",
+    "test": "data/pre-processed/serialization/diabetes_test.csv"
+  },
+  "output_files": {
+    "train": "data/serialized/diabetes_train_serialized.csv",
+    "test": "data/serialized/diabetes_test_serialized.csv"
+  },
+
+  "format": "csv",
+  "has_header": true,
+
+  "target_col": "target",
+
+  "drop_columns": ["patient_id", "day"],
+
+  "target_mapping": {
+    "0": "no hypoglycemic event tomorrow",
+    "1": "hypoglycemic event tomorrow"
+  },
+
+  "column_mappings": {},
+
+  "numeric_cols": [
+    "insulin_regular_total",
+    "insulin_regular_doses",
+    "insulin_nph_total",
+    "insulin_nph_doses",
+    "insulin_ultralente_total",
+    "insulin_ultralente_doses",
+    "glucose_mean",
+    "glucose_min",
+    "glucose_max",
+    "glucose_std",
+    "glucose_count",
+    "hypoglycemic_events"
+  ],
+  
+  "continuous_categorical_mappings": {
+    "meal_pattern": {
+      "0": "less",
+      "1": "typical",
+      "2": "more"
+    },
+    "exercise_pattern": {
+      "0": "less",
+      "1": "typical",
+      "2": "more"
+    }
+  }
+}

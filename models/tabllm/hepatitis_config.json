@@ -1,0 +1,80 @@
+{
+  "input_files": {
+    "train": "data/pre-processed/serialization/hepatitis_train.csv",
+    "test": "data/pre-processed/serialization/hepatitis_test.csv"
+  },
+  "output_files": {
+    "train": "data/serialized/hepatitis_train_serialized.csv",
+    "test": "data/serialized/hepatitis_test_serialized.csv"
+  },
+  "target_col": "target",
+
+  "target_mapping": {
+    "0": "live",
+    "1": "die"
+  },
+
+  "column_mappings": {
+    "Sex": {
+      "1": "male",
+      "2": "female"
+    },
+    "Steroid": {
+      "1": "no",
+      "2": "yes"
+    },
+    "Antivirals": {
+      "1": "no",
+      "2": "yes"
+    },
+    "Fatigue": {
+      "1": "no",
+      "2": "yes"
+    },
+    "Malaise": {
+      "1": "no",
+      "2": "yes"
+    },
+    "Anorexia": {
+      "1": "no",
+      "2": "yes"
+    },
+    "Liver Big": {
+      "1": "no",
+      "2": "yes"
+    },
+    "Liver Firm": {
+      "1": "no",
+      "2": "yes"
+    },
+    "Spleen Palpable": {
+      "1": "no",
+      "2": "yes"
+    },
+    "Spiders": {
+      "1": "no",
+      "2": "yes"
+    },
+    "Ascites": {
+      "1": "no",
+      "2": "yes"
+    },
+    "Varices": {
+      "1": "no",
+      "2": "yes"
+    },
+    "Histology": {
+      "1": "no",
+      "2": "yes"
+    }
+  },
+
+  "numeric_cols": [
+    "Age",
+    "Bilirubin",
+    "Alk Phosphate",
+    "Sgot",
+    "Albumin",
+    "Protime"
+  ]
+}
