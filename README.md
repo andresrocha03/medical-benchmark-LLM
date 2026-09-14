@@ -19,4 +19,6 @@ Corrections from original project:
 
 - Introduced utils.py inside models/ to reuse functions accross model evaluations.
 
-- 
+- Reorganized the TabLLM to integrate with the project structure.
+
+- Included the demand for receiving standard binary answers ("positive" or "negative") when evaluating the zero-shot with LLMs.
