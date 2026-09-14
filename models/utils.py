@@ -119,18 +119,34 @@ def save_confusion_matrix(
     model_name,
     dataset_name,
     output_path,
+    labels=None,
+    display_labels=None,
+    title=None,
 ):
     """Save one consistently styled held-out confusion matrix."""
+    if labels is None:
+        labels = [0, 1]
+    if display_labels is None:
+        display_labels = (
+            ["No bad event (0)", "Bad event (1)"]
+            if list(labels) == [0, 1]
+            else [str(label) for label in labels]
+        )
+
     fig, ax = plt.subplots(figsize=(5, 4))
     ConfusionMatrixDisplay.from_predictions(
         y_true,
         predictions,
-        display_labels=["No bad event (0)", "Bad event (1)"],
+        labels=labels,
+        display_labels=display_labels,
         cmap="Blues",
         colorbar=False,
         ax=ax,
     )
-    ax.set_title(f"{model_name} — {dataset_name.title()} test confusion matrix")
+    ax.set_title(
+        title
+        or f"{model_name} — {dataset_name.title()} test confusion matrix"
+    )
     fig.tight_layout()
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)

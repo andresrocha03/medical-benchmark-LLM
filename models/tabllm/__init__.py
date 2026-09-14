@@ -1,1 +1,1 @@
-"""TabLLM dataset serialization, model evaluation, and metrics package."""
+"""TabLLM inference and evaluation package."""

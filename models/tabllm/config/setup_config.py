@@ -1,8 +1,8 @@
 from pathlib import Path
 
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-SERIALIZED_DATA_DIR = REPOSITORY_ROOT / "data" / "serialized"
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+SERIALIZED_DATA_DIR = REPOSITORY_ROOT / "data" / "pre-processed" / "serialized"
 CONFIG_DIR = Path(__file__).resolve().parent
 
 
@@ -12,6 +12,9 @@ MODELS = {
     "meditron": "epfl-llm/meditron-7b",
     "biomistral": "BioMistral/BioMistral-7B",
 }
+
+
+PREDICTION_LABELS = ("negative", "positive")
 
 
 DATASETS = {

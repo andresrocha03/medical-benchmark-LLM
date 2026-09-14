@@ -7,8 +7,8 @@ import pandas as pd
 
 SERIALIZATION_CHOICES = ("text_template", "json", "llm")
 DEFAULT_DATASETS = ("hepatitis", "heart", "diabetes")
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-CONFIG_DIR = Path(__file__).resolve().parent
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+CONFIG_DIR = REPOSITORY_ROOT / "models" / "tabllm" / "config"
 
 
 def config_path_from_dataset(dataset_name):
@@ -561,7 +561,10 @@ def main():
         "--datasets",
         nargs="+",
         default=list(DEFAULT_DATASETS),
-        help="Dataset names to serialize. Uses models/tabllm/{dataset_name}_config.json.",
+        help=(
+            "Dataset names to serialize. Uses "
+            "models/tabllm/config/{dataset_name}_config.json."
+        ),
     )
     parser.add_argument(
         "--configs",

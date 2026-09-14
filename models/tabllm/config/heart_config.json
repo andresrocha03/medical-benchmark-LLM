@@ -1,11 +1,11 @@
 {
   "input_files": {
-    "train": "data/pre-processed/serialization/heart_train.csv",
-    "test": "data/pre-processed/serialization/heart_test.csv"
+    "train": "data/pre-processed/not_normalized/heart_train.csv",
+    "test": "data/pre-processed/not_normalized/heart_test.csv"
   },
   "output_files": {
-    "train": "data/serialized/heart_train_serialized.csv",
-    "test": "data/serialized/heart_test_serialized.csv"
+    "train": "data/pre-processed/serialized/heart_train_serialized.csv",
+    "test": "data/pre-processed/serialized/heart_test_serialized.csv"
   },
 
   "column_names": [

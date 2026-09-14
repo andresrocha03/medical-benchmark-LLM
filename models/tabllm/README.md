@@ -18,8 +18,8 @@ parameters) are fitted on training data only.
 The notebooks produce two versions of the same split:
 
 ```text
-data/pre-processed/serialization/<dataset>_train.csv  # before normalization
-data/pre-processed/serialization/<dataset>_test.csv
+data/pre-processed/not_normalized/<dataset>_train.csv  # before normalization
+data/pre-processed/not_normalized/<dataset>_test.csv
 data/pre-processed/<dataset>_train.csv                # after normalization
 data/pre-processed/<dataset>_test.csv
 ```
@@ -28,8 +28,8 @@ TabLLM consumes the non-normalized split. Serialization preserves the split and
 writes:
 
 ```text
-data/serialized/<dataset>_train_serialized.csv
-data/serialized/<dataset>_test_serialized.csv
+data/pre-processed/serialized/<dataset>_train_serialized.csv
+data/pre-processed/serialized/<dataset>_test_serialized.csv
 ```
 
 Model evaluation reads only the serialized test file. The train file remains
@@ -45,10 +45,10 @@ disease and diabetes retain `1` as their adverse-event class.
 Dataset configs live beside the code:
 
 ```text
-models/tabllm/hepatitis_config.json
-models/tabllm/heart_config.json
-models/tabllm/diabetes_config.json
-models/tabllm/setup_config.py
+models/tabllm/config/hepatitis_config.json
+models/tabllm/config/heart_config.json
+models/tabllm/config/diabetes_config.json
+models/tabllm/config/setup_config.py
 ```
 
 All repository paths are resolved from the repository root, so commands work
@@ -59,13 +59,13 @@ from either the root or the `models/tabllm` directory.
 From the repository root:
 
 ```bash
-python3 -m models.tabllm.serialization
+python3 -m data.processing.tabllm.serialization
 ```
 
 Select datasets or representations:
 
 ```bash
-python3 -m models.tabllm.serialization \
+python3 -m data.processing.tabllm.serialization \
   --datasets heart diabetes \
   --serializations text_template json
 ```
@@ -73,7 +73,7 @@ python3 -m models.tabllm.serialization \
 Generate the `llm` representation with a Hugging Face model:
 
 ```bash
-python3 -m models.tabllm.serialization \
+python3 -m data.processing.tabllm.serialization \
   --serializations llm \
   --llm-model mistralai/Mistral-7B-Instruct-v0.2
 ```
@@ -84,33 +84,36 @@ fallback.
 ## Run model evaluation
 
 ```bash
-python3 -m models.tabllm.test_models \
+python3 -m models.tabllm.run_test \
   --models mistral \
   --datasets hepatitis heart diabetes \
   --serializations text_template json llm
 ```
 
-A small smoke run can be requested with:
-
-```bash
-python3 -m models.tabllm.test_models --test
-```
-
 Available model keys are defined in `setup_config.py`: `llama3`, `mistral`,
 `meditron`, and `biomistral`.
 
-Outputs are stored under `results/tabllm/`. Raw responses are organized by
-dataset and serialization style, and the global summaries are written as
-`all_results_summary.csv` or `all_results_test_summary.csv`.
+Outputs are stored under `results/tabllm/`. Raw responses and confusion
+matrices are organized by dataset and serialization style. Every completed
+`(model, serialization, dataset)` trio contributes one row to
+`tabllm_results.csv`.
 
 ## Metrics
 
-Compute metrics from saved raw responses with:
+Metrics are computed automatically after every trio. To regenerate them from
+saved raw responses, run:
 
 ```bash
-python3 -m models.tabllm.metrics
+python3 -m models.tabllm.compute_metrics
 ```
 
-The evaluator computes accuracy, positive-class precision and recall, macro F1,
-the percentage of invalid answers, and confusion matrices. AUC is not computed
-because the model produces hard text labels rather than probability scores.
+The evaluator saves the same test-metric columns used by the other benchmark
+models: accuracy, positive-class precision and recall, macro F1, and AUC. AUC
+is recorded as unavailable (`NaN`) because TabLLM produces hard text labels
+rather than probability scores. Invalid-answer counts and percentages are also
+saved, and invalid answers appear explicitly in the confusion matrices.
+
+Every prompt maps the dataset's adverse outcome to `positive` and the other
+outcome to `negative`. A response containing exactly one of those labels is
+parsed as that prediction. Responses containing neither label or both labels
+are invalid and count as incorrect predictions.

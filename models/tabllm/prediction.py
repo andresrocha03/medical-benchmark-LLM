@@ -1,11 +1,9 @@
-import json
 import os
-import re
 
 try:
-    from .setup_config import RESULTS_DIR
+    from .config.setup_config import PREDICTION_LABELS, RESULTS_DIR
 except ImportError:  # Allow direct execution from models/tabllm.
-    from setup_config import RESULTS_DIR
+    from models.tabllm.config.setup_config import PREDICTION_LABELS, RESULTS_DIR
 
 
 SERIALIZATION_COLUMNS = {
@@ -13,23 +11,6 @@ SERIALIZATION_COLUMNS = {
     "json": "serialized_json",
     "llm": "serialized_llm",
 }
-
-
-def safe_name(name):
-    """
-    Convert a string into a safe filename.
-
-    Parameters
-    ----------
-    name : str
-        Original string, such as a model name or dataset name.
-
-    Returns
-    -------
-    str
-        Filename-safe version of the input string.
-    """
-    return re.sub(r"[^a-zA-Z0-9_-]", "_", name)
 
 
 def load_model(model_name):
@@ -80,7 +61,7 @@ def load_model(model_name):
     return tokenizer, model
 
 
-def build_prompt(serialized_row, task, choices):
+def build_prompt(serialized_row, task, target_labels, positive_target_label):
     """
     Build the classification prompt for a serialized patient row.
 
@@ -92,18 +73,30 @@ def build_prompt(serialized_row, task, choices):
     task : str
         Dataset-specific classification task.
 
-    choices : list of str
-        Allowed class labels.
+    target_labels : list of str
+        Semantic labels used by the serialized dataset.
+
+    positive_target_label : str
+        Semantic dataset label represented by the model answer ``positive``.
 
     Returns
     -------
     str
         Prompt to send to the language model.
     """
-    choices_text = "\n".join([f"- {choice}" for choice in choices])
+    negative_target_labels = [
+        label for label in target_labels if label != positive_target_label
+    ]
+    if len(target_labels) != 2 or len(negative_target_labels) != 1:
+        raise ValueError(
+            "TabLLM requires exactly two target labels and one positive label."
+        )
+
+    negative_target_label = negative_target_labels[0]
+    negative_response, positive_response = PREDICTION_LABELS
 
     return f"""
-You are performing a supervised machine learning classification task.
+You are performing a binary medical classification task.
 
 Input:
 {serialized_row}
@@ -111,12 +104,12 @@ Input:
 Task:
 {task}
 
-Valid labels:
-{choices_text}
+Label mapping:
+- Answer "{positive_response}" when the predicted outcome is "{positive_target_label}".
+- Answer "{negative_response}" when the predicted outcome is "{negative_target_label}".
 
 Rules:
-- Choose exactly one label.
-- You must output one of the valid labels.
+- Choose exactly one of these labels: "{positive_response}" or "{negative_response}".
 - Do not explain your reasoning.
 - Do not output any text other than the label.
 - If uncertain, choose the most likely label.
@@ -125,7 +118,14 @@ Answer:
 """.strip()
 
 
-def predict_one_row(serialized_row, task, choices, tokenizer, model):
+def predict_one_row(
+    serialized_row,
+    task,
+    target_labels,
+    positive_target_label,
+    tokenizer,
+    model,
+):
     """
     Generate one model response for a row.
 
@@ -137,8 +137,11 @@ def predict_one_row(serialized_row, task, choices, tokenizer, model):
     task : str
         Dataset-specific task instruction.
 
-    choices : list of str
-        Allowed output labels.
+    target_labels : list of str
+        Semantic labels used by the serialized dataset.
+
+    positive_target_label : str
+        Semantic dataset label represented by the answer ``positive``.
 
     tokenizer : transformers.PreTrainedTokenizer
         Loaded tokenizer.
@@ -157,7 +160,12 @@ def predict_one_row(serialized_row, task, choices, tokenizer, model):
     """
     import torch
 
-    prompt = build_prompt(serialized_row, task, choices)
+    prompt = build_prompt(
+        serialized_row,
+        task,
+        target_labels,
+        positive_target_label,
+    )
     messages = [{"role": "user", "content": prompt}]
 
     if tokenizer.chat_template is None:
@@ -195,14 +203,26 @@ def predict_one_row(serialized_row, task, choices, tokenizer, model):
     }
 
 
-def predict_batch(serialized_rows, task, choices, tokenizer, model):
+def predict_batch(
+    serialized_rows,
+    task,
+    target_labels,
+    positive_target_label,
+    tokenizer,
+    model,
+):
     """
     Generate model responses for a batch of serialized rows.
     """
     import torch
 
     prompts = [
-        build_prompt(serialized_row, task, choices)
+        build_prompt(
+            serialized_row,
+            task,
+            target_labels,
+            positive_target_label,
+        )
         for serialized_row in serialized_rows
     ]
 
@@ -350,7 +370,8 @@ def run_dataset(
                 predict_one_row(
                     serialized_row=batch_rows[0],
                     task=dataset_config["task"],
-                    choices=dataset_config["choices"],
+                    target_labels=dataset_config["choices"],
+                    positive_target_label=dataset_config["positive_label"],
                     tokenizer=tokenizer,
                     model=model,
                 )
@@ -359,7 +380,8 @@ def run_dataset(
             batch_results = predict_batch(
                 serialized_rows=batch_rows,
                 task=dataset_config["task"],
-                choices=dataset_config["choices"],
+                target_labels=dataset_config["choices"],
+                positive_target_label=dataset_config["positive_label"],
                 tokenizer=tokenizer,
                 model=model,
             )
@@ -380,7 +402,7 @@ def run_dataset(
 
     df.to_csv(output_path, index=False)
 
-    metrics = {
+    run_metadata = {
         "dataset": dataset_name,
         "serialization": serialization_style,
         "model": model_key,
@@ -391,17 +413,7 @@ def run_dataset(
         "output_file": output_path,
     }
 
-    metrics_path = os.path.join(
-        dataset_dir,
-        f"{model_key}_{run_tag}_metrics.json"
-        if run_tag
-        else f"{model_key}_metrics.json",
-    )
-
-    with open(metrics_path, "w") as file:
-        json.dump(metrics, file, indent=4)
-
-    return metrics
+    return run_metadata
 
 
 def clear_model_resources(model, tokenizer):
