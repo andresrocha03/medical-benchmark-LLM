@@ -14,3 +14,9 @@ results/*
 .agents
 article.md
 
+# Keep this notebook
+!/results/compare_model_metrics.ipynb
+
+# Keep this directory and everything inside it
+!/results/metric_comparisons/
+!/results/metric_comparisons/**
