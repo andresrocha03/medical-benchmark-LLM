@@ -8,13 +8,21 @@ import pandas as pd
 from sklearn.metrics import accuracy_score, confusion_matrix, f1_score
 
 try:
-    from ..utils import save_confusion_matrix
+    from ..utils import (
+        print_row_progress,
+        print_run_context,
+        save_confusion_matrix,
+    )
 except ImportError:  # Allow direct execution from models/tabllm.
     import sys
 
     REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(REPOSITORY_ROOT))
-    from models.utils import save_confusion_matrix
+    from models.utils import (
+        print_row_progress,
+        print_run_context,
+        save_confusion_matrix,
+    )
 
 try:
     from .config.setup_config import DATASETS, PREDICTION_LABELS, RESULTS_DIR
@@ -106,11 +114,18 @@ def extract_run_info(raw_response_path, results_dir=RESULTS_DIR):
     return dataset, serialization, model
 
 
-def evaluate_raw_responses(raw_response_path, dataset_config):
+def evaluate_raw_responses(
+    raw_response_path,
+    dataset_config,
+    *,
+    dataset_name="unknown",
+    model_name="unknown",
+):
     """
     Compute metrics for one raw-response CSV.
     """
     df = pd.read_csv(raw_response_path)
+    print_run_context(model_name, dataset_name, total_rows=len(df))
     target_labels = dataset_config["choices"]
     positive_target_label = dataset_config["positive_label"]
     negative_target_labels = [
@@ -127,10 +142,10 @@ def evaluate_raw_responses(raw_response_path, dataset_config):
         negative_target_labels[0]: negative_response,
     }
 
-    parsed_outputs = [
-        parse_prediction(output, PREDICTION_LABELS)
-        for output in df["output"]
-    ]
+    parsed_outputs = []
+    for processed_rows, output in enumerate(df["output"], start=1):
+        parsed_outputs.append(parse_prediction(output, PREDICTION_LABELS))
+        print_row_progress(processed_rows, len(df))
     parsed_predictions = [parsed_label for parsed_label, _ in parsed_outputs]
     parse_statuses = [status for _, status in parsed_outputs]
     y_true = df["target_col"].map(target_to_response)
@@ -246,6 +261,8 @@ def evaluate_and_save_run(
     metrics, _, evaluated_df = evaluate_raw_responses(
         raw_response_path,
         DATASETS[dataset],
+        dataset_name=dataset,
+        model_name=model,
     )
 
     matrix_path = (

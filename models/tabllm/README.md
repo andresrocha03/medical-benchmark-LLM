@@ -83,8 +83,19 @@ fallback.
 
 ## Run model evaluation
 
+From the repository root:
+
 ```bash
 python3 -m models.tabllm.run_test \
+  --models mistral \
+  --datasets hepatitis heart diabetes \
+  --serializations text_template json llm
+```
+
+Or, from the `models/tabllm` directory, run the file directly:
+
+```bash
+python3 run_test.py \
   --models mistral \
   --datasets hepatitis heart diabetes \
   --serializations text_template json llm

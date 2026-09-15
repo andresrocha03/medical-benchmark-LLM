@@ -24,6 +24,7 @@ DATASETS = ("diabetes", "hepatitis", "heart")
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = REPOSITORY_ROOT / "data" / "pre-processed"
 RESULTS_ROOT = REPOSITORY_ROOT / "results"
+PROGRESS_INTERVAL = 150
 
 CROSS_VALIDATION_SCORING = {
     "f1_macro": make_scorer(
@@ -34,6 +35,23 @@ CROSS_VALIDATION_SCORING = {
     "recall": "recall",
     "auc": "roc_auc",
 }
+
+
+def print_run_context(model_name, dataset_name, *, total_rows=None):
+    """Print the model and dataset at the start of a benchmark run."""
+    message = f"Model: {model_name} | Dataset: {dataset_name}"
+    if total_rows is not None:
+        message += f" | Rows: {total_rows}"
+    print(f"\n{message}", flush=True)
+
+
+def print_row_progress(processed_rows, total_rows, *, interval=PROGRESS_INTERVAL):
+    """Print a heartbeat at each row interval and when processing finishes."""
+    if processed_rows % interval == 0 or processed_rows == total_rows:
+        print(
+            f"  Processed {processed_rows}/{total_rows} rows",
+            flush=True,
+        )
 
 
 def load_dataset(dataset_name, *, as_numpy=False):

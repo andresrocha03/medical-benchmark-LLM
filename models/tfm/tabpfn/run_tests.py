@@ -15,6 +15,7 @@ from models.utils import (
     DATASETS,
     RESULTS_ROOT,
     load_dataset,
+    print_run_context,
     save_confusion_matrix,
 )
 
@@ -31,8 +32,8 @@ RESULTS_PATH = RESULTS_DIR / "tabpfn_results.csv"
 def test_all():
     results = []
     for dataset in DATASETS:
-        print(f"\n--- {dataset} ---")
         X_train, y_train, X_test, y_test = load_dataset(dataset)
+        print_run_context("TabPFN", dataset)
         predictions, metrics = evaluate_tabpfn(X_train, y_train, X_test, y_test)
         results.append({"dataset": dataset, **metrics})
         save_confusion_matrix(

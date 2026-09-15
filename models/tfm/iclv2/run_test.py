@@ -20,6 +20,7 @@ from models.utils import (
     DATASETS,
     RESULTS_ROOT,
     load_dataset,
+    print_run_context,
     save_confusion_matrix,
 )
 
@@ -37,10 +38,10 @@ def test_all():
     """Run one leakage-free TabICLv2 evaluation per medical dataset."""
     results = []
     for dataset_name in DATASETS:
-        print(f"\n--- {dataset_name} ---")
         X_train, y_train, X_test, y_test = load_dataset(
             dataset_name, as_numpy=True
         )
+        print_run_context("TabICLv2", dataset_name)
         predictions, _, metrics = evaluate_tabicl_v2(
             X_train,
             y_train,

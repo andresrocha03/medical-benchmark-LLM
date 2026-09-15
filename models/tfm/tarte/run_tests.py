@@ -18,6 +18,7 @@ from models.utils import (
     compute_binary_metrics,
     get_torch_device,
     load_dataset,
+    print_run_context,
     save_confusion_matrix,
     set_random_seed,
 )
@@ -41,6 +42,7 @@ def test_all():
     results = []
     for dataset_name in DATASETS:
         X_train, y_train, X_test, y_test = load_dataset(dataset_name)
+        print_run_context("TARTE-Featurizer-XGBoost", dataset_name)
         started = perf_counter()
         evaluator = TARTEFeaturizerEvaluator(device=device, layer_index=2)
         evaluator.fit(X_train, y_train)

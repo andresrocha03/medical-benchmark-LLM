@@ -24,6 +24,7 @@ from models.utils import (
     compute_binary_metrics,
     load_dataset,
     predictions_from_probabilities,
+    print_run_context,
     save_confusion_matrix,
 )
 
@@ -41,8 +42,8 @@ def evaluate_model(evaluator_class):
     model_results = []
 
     for dataset_name in DATASETS:
-        print(f"\n--- {model_name}: {dataset_name} ---")
         X_train, y_train, X_test, y_test = load_dataset(dataset_name)
+        print_run_context(model_name, dataset_name)
         evaluator = evaluator_class()
 
         # Training time includes every cross-validation fit plus GridSearchCV's

@@ -46,6 +46,7 @@ class TARTEFeaturizerEvaluator:
         self.pipeline.fit(X_train, y_train)
         return self
 
+
     def predict_with_probabilities(self, X):
         """Transform once, then return labels and positive-class probabilities."""
         features = self.pipeline[:-1].transform(X)

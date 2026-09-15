@@ -7,6 +7,7 @@ import pandas as pd
 
 SERIALIZATION_CHOICES = ("text_template", "json", "llm")
 DEFAULT_DATASETS = ("hepatitis", "heart", "diabetes")
+PROGRESS_INTERVAL = 150
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 CONFIG_DIR = REPOSITORY_ROOT / "models" / "tabllm" / "config"
 
@@ -320,6 +321,30 @@ def load_llm_serializer(model_name):
     return tokenizer, model
 
 
+def serialize_rows(df, serializer, *, model_name, dataset_name, serialization):
+    """Serialize rows with visible run context and periodic progress output."""
+    total_rows = len(df)
+    print(
+        f"\nModel: {model_name} | Dataset: {dataset_name} "
+        f"| Serialization: {serialization} | Rows: {total_rows}",
+        flush=True,
+    )
+    serialized_rows = []
+
+    for processed_rows, (_, row) in enumerate(df.iterrows(), start=1):
+        serialized_rows.append(serializer(row))
+        if (
+            processed_rows % PROGRESS_INTERVAL == 0
+            or processed_rows == total_rows
+        ):
+            print(
+                f"  Processed {processed_rows}/{total_rows} rows",
+                flush=True,
+            )
+
+    return serialized_rows
+
+
 def process_dataset(
     config,
     filepath=None,
@@ -328,6 +353,8 @@ def process_dataset(
     llm_tokenizer=None,
     llm_model=None,
     llm_max_new_tokens=80,
+    dataset_name="unknown",
+    serializer_model_name="deterministic serializer",
 ):
     """
     Load, clean, serialize, and save a tabular dataset.
@@ -411,22 +438,29 @@ def process_dataset(
     output_columns = []
 
     if "text_template" in serializations:
-        df["serialized_text"] = df.apply(
+        df["serialized_text"] = serialize_rows(
+            df,
             lambda row: serialize_row(row, target_col),
-            axis=1
+            model_name="deterministic text-template serializer",
+            dataset_name=dataset_name,
+            serialization="text_template",
         )
         output_columns.append("serialized_text")
 
     if "json" in serializations:
-        df["serialized_json"] = df.apply(
+        df["serialized_json"] = serialize_rows(
+            df,
             lambda row: serialize_row_json(row, target_col),
-            axis=1
+            model_name="deterministic JSON serializer",
+            dataset_name=dataset_name,
+            serialization="json",
         )
         output_columns.append("serialized_json")
 
     if "llm" in serializations:
         if llm_tokenizer is not None and llm_model is not None:
-            df["serialized_llm"] = df.apply(
+            df["serialized_llm"] = serialize_rows(
+                df,
                 lambda row: generate_llm_serialization(
                     row,
                     target_col,
@@ -434,12 +468,17 @@ def process_dataset(
                     llm_model,
                     llm_max_new_tokens,
                 ),
-                axis=1
+                model_name=serializer_model_name,
+                dataset_name=dataset_name,
+                serialization="llm",
             )
         else:
-            df["serialized_llm"] = df.apply(
+            df["serialized_llm"] = serialize_rows(
+                df,
                 lambda row: serialize_row_llm_style(row, target_col),
-                axis=1
+                model_name="deterministic LLM-style serializer",
+                dataset_name=dataset_name,
+                serialization="llm",
             )
         output_columns.append("serialized_llm")
 
@@ -458,6 +497,7 @@ def serialize(
     llm_tokenizer=None,
     llm_model=None,
     llm_max_new_tokens=80,
+    serializer_model_name="deterministic serializer",
 ):
     """
     Main function to process the dataset based on the provided configuration.
@@ -474,6 +514,7 @@ def serialize(
         `serialized_text` column.
     """
     config = load_config(config_path)
+    dataset_name = Path(config_path).stem.removesuffix("_config")
 
     input_files = config.get("input_files")
     output_files = config.get("output_files")
@@ -486,6 +527,8 @@ def serialize(
                 llm_tokenizer=llm_tokenizer,
                 llm_model=llm_model,
                 llm_max_new_tokens=llm_max_new_tokens,
+                dataset_name=dataset_name,
+                serializer_model_name=serializer_model_name,
             )
         }
 
@@ -501,6 +544,8 @@ def serialize(
             llm_tokenizer=llm_tokenizer,
             llm_model=llm_model,
             llm_max_new_tokens=llm_max_new_tokens,
+            dataset_name=f"{dataset_name}/{split}",
+            serializer_model_name=serializer_model_name,
         )
         for split in input_files
     }
@@ -544,6 +589,7 @@ def run_serialization(
             llm_tokenizer=llm_tokenizer,
             llm_model=loaded_llm_model,
             llm_max_new_tokens=llm_max_new_tokens,
+            serializer_model_name=llm_model or "deterministic serializer",
         )
         serialized_datasets[str(config_path)] = split_frames
         for split, df in split_frames.items():

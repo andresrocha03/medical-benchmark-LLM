@@ -1,28 +1,23 @@
 import argparse
 import os
 from pathlib import Path
+import sys
 from time import perf_counter
 
 import pandas as pd
 
-try:
-    from .config.setup_config import DATASETS, MODELS, RESULTS_DIR
-    from .prediction import (
-        SERIALIZATION_COLUMNS,
-        clear_model_resources,
-        load_model,
-        run_dataset,
-    )
-    from .compute_metrics import evaluate_and_save_run
-except ImportError:  # Allow direct execution from models/tabllm.
-    from models.tabllm.config.setup_config import DATASETS, MODELS, RESULTS_DIR
-    from models.tabllm.prediction import (
-        SERIALIZATION_COLUMNS,
-        clear_model_resources,
-        load_model,
-        run_dataset,
-    )
-    from models.tabllm.compute_metrics import evaluate_and_save_run
+# Support: cd models/tabllm && python3 run_test.py
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPOSITORY_ROOT))
+
+from models.tabllm.config.setup_config import DATASETS, MODELS, RESULTS_DIR
+from models.tabllm.prediction import (
+    SERIALIZATION_COLUMNS,
+    clear_model_resources,
+    load_model,
+    run_dataset,
+)
+from models.tabllm.compute_metrics import evaluate_and_save_run
 
 
 RESULT_KEY = ["dataset", "model", "serialization"]
@@ -109,6 +104,7 @@ def run_model_tests(
                     dataset_name=dataset_name,
                     dataset_config=dataset_config,
                     model_key=model_key,
+                    model_name=model_name,
                     tokenizer=tokenizer,
                     model=model,
                     serialization_style=serialization_style,

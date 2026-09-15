@@ -9,3 +9,5 @@ venv/*
 # Others
 token.txt
 __pycache__/
+
+results/*

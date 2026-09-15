@@ -4,8 +4,10 @@ from time import perf_counter
 import numpy as np
 
 from models.utils import (
+    PROGRESS_INTERVAL,
     compute_binary_metrics,
     predictions_from_probabilities,
+    print_row_progress,
     select_positive_probabilities,
 )
 
@@ -14,7 +16,7 @@ from tabpfn import TabPFNClassifier
 
 
 class TabPFNEvaluator:
-    def __init__(self, batch_size=1000):
+    def __init__(self, batch_size=PROGRESS_INTERVAL):
         self.classifier = TabPFNClassifier(fit_mode="fit_with_cache")
         self.batch_size = batch_size
         
@@ -33,6 +35,7 @@ class TabPFNEvaluator:
             
             batch_probs = self.classifier.predict_proba(batch_X)
             probs.append(batch_probs)
+            print_row_progress(end_idx, n_samples)
             
         return np.vstack(probs)
 
@@ -60,5 +63,5 @@ class TabPFNEvaluator:
 
 
 def evaluate_tabpfn(X_train, y_train, X_test, y_test):
-    evaluator = TabPFNEvaluator(batch_size=1000)
+    evaluator = TabPFNEvaluator()
     return evaluator.evaluate(X_train, y_train, X_test, y_test)

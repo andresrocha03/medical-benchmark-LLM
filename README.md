@@ -8,14 +8,14 @@ The original project was done for a course in Telecom Paris, but due to personal
 
 Corrections from original project:
 
-- Defining the same evaluation protocol for all models.
+- Defining the same evaluation protocol for all models (F1-macro, precision, recall, accuracy, AUC, training time and prediction time).
 
 - TabPFN was being tuned in the test set, leading do test leakage.
 
+- Removed the threshold tuning from ICLv2, that was also leading to test leakage.
+
 - Replaced the custom TARTE reconstruction with small, cluster-runnable modules
   around the authors' `tarte-ai` frozen featurizer.
-
-- Removed the threshold tuning from ICLv2, that was also leading to test leakage.
 
 - Introduced utils.py inside models/ to reuse functions accross model evaluations.
 

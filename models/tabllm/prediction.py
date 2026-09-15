@@ -286,6 +286,7 @@ def run_dataset(
     max_examples=None,
     run_tag=None,
     batch_size=1,
+    model_name=None,
 ):
     """
     Run one model on one dataset and save raw responses.
@@ -319,6 +320,10 @@ def run_dataset(
 
     batch_size : int
         Number of rows to generate at once. Defaults to 1.
+
+    model_name : str, optional
+        Full model identifier displayed in progress messages. Falls back to
+        ``model_key`` when omitted.
 
     Returns
     -------
@@ -355,12 +360,20 @@ def run_dataset(
     raw_responses = []
     prompts = []
 
+    displayed_model = (
+        f"{model_name} ({model_key})"
+        if model_name and model_name != model_key
+        else model_key
+    )
     print(
-        f"[{dataset_name} | {serialization_style} | {model_key}] "
-        f"Running {len(df)} examples with batch_size={batch_size}..."
+        f"\nModel: {displayed_model} | Dataset: {dataset_name} "
+        f"| Serialization: {serialization_style} | Rows: {len(df)} "
+        f"| Batch size: {batch_size}",
+        flush=True,
     )
 
     serialized_rows = df[serialization_column].tolist()
+    next_progress_row = 150
 
     for start_idx in range(0, len(serialized_rows), batch_size):
         batch_rows = serialized_rows[start_idx:start_idx + batch_size]
@@ -389,6 +402,23 @@ def run_dataset(
         for result in batch_results:
             raw_responses.append(result["output"])
             prompts.append(result["prompt"])
+
+        processed_rows = min(start_idx + len(batch_rows), len(serialized_rows))
+        while processed_rows >= next_progress_row:
+            print(
+                f"  Processed {next_progress_row}/{len(serialized_rows)} rows",
+                flush=True,
+            )
+            next_progress_row += 150
+
+        if (
+            processed_rows == len(serialized_rows)
+            and processed_rows % 150 != 0
+        ):
+            print(
+                f"  Processed {processed_rows}/{len(serialized_rows)} rows",
+                flush=True,
+            )
 
     df["output"] = raw_responses
     df["prompt"] = prompts
