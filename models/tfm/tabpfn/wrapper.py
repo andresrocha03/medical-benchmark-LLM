@@ -2,6 +2,7 @@ import math
 from time import perf_counter
 
 import numpy as np
+import pandas as pd
 
 from models.utils import (
     PROGRESS_INTERVAL,
@@ -16,14 +17,46 @@ from tabpfn import TabPFNClassifier
 
 
 class TabPFNEvaluator:
-    def __init__(self, batch_size=PROGRESS_INTERVAL):
+    def __init__(self, batch_size: int = PROGRESS_INTERVAL) -> None:
+        """Configure a cached TabPFN classifier and prediction batch size.
+
+        input:
+            - batch_size: int
+
+        output:
+            - None: None
+        """
         self.classifier = TabPFNClassifier(fit_mode="fit_with_cache")
         self.batch_size = batch_size
         
-    def fit(self, X_train, y_train):
+    def fit(
+        self,
+        X_train: pd.DataFrame | np.ndarray,
+        y_train: np.ndarray,
+    ) -> None:
+        """Fit TabPFN on the training data.
+
+        input:
+            - X_train: pandas.DataFrame | numpy.ndarray
+            - y_train: numpy.ndarray
+
+        output:
+            - None: None
+        """
         self.classifier.fit(X_train, y_train)
         
-    def _batched_predict_proba(self, X):
+    def _batched_predict_proba(
+        self,
+        X: pd.DataFrame | np.ndarray,
+    ) -> np.ndarray:
+        """Predict class probabilities in memory-bounded batches.
+
+        input:
+            - X: pandas.DataFrame | numpy.ndarray
+
+        output:
+            - probabilities: numpy.ndarray
+        """
         n_samples = len(X)
         n_batches = math.ceil(n_samples / self.batch_size)
         probs = []
@@ -39,7 +72,24 @@ class TabPFNEvaluator:
             
         return np.vstack(probs)
 
-    def evaluate(self, X_train, y_train, X_test, y_test):
+    def evaluate(
+        self,
+        X_train: pd.DataFrame | np.ndarray,
+        y_train: np.ndarray,
+        X_test: pd.DataFrame | np.ndarray,
+        y_test: np.ndarray,
+    ) -> tuple[np.ndarray, dict[str, float]]:
+        """Fit TabPFN and compute held-out benchmark metrics.
+
+        input:
+            - X_train: pandas.DataFrame | numpy.ndarray
+            - y_train: numpy.ndarray
+            - X_test: pandas.DataFrame | numpy.ndarray
+            - y_test: numpy.ndarray
+
+        output:
+            - evaluation: tuple[numpy.ndarray, dict[str, float]]
+        """
         training_start_time = perf_counter()
         self.fit(X_train, y_train)
         train_time_seconds = perf_counter() - training_start_time
@@ -62,6 +112,22 @@ class TabPFNEvaluator:
         return predictions, metrics
 
 
-def evaluate_tabpfn(X_train, y_train, X_test, y_test):
+def evaluate_tabpfn(
+    X_train: pd.DataFrame | np.ndarray,
+    y_train: np.ndarray,
+    X_test: pd.DataFrame | np.ndarray,
+    y_test: np.ndarray,
+) -> tuple[np.ndarray, dict[str, float]]:
+    """Evaluate TabPFN using the default wrapper configuration.
+
+    input:
+        - X_train: pandas.DataFrame | numpy.ndarray
+        - y_train: numpy.ndarray
+        - X_test: pandas.DataFrame | numpy.ndarray
+        - y_test: numpy.ndarray
+
+    output:
+        - evaluation: tuple[numpy.ndarray, dict[str, float]]
+    """
     evaluator = TabPFNEvaluator()
     return evaluator.evaluate(X_train, y_train, X_test, y_test)

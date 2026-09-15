@@ -36,8 +36,17 @@ except ImportError:  # Direct script execution.
     from xgboost_wrapper import XGBoostEvaluator
 
 
-def evaluate_model(evaluator_class):
-    """Tune and test one model family on all configured datasets."""
+def evaluate_model(
+    evaluator_class: type[LightGBMEvaluator] | type[XGBoostEvaluator],
+) -> None:
+    """Tune and test one model family on every configured dataset.
+
+    input:
+        - evaluator_class: type[LightGBMEvaluator] | type[XGBoostEvaluator]
+
+    output:
+        - None: None
+    """
     model_name = evaluator_class.model_name
     model_results = []
 
@@ -99,8 +108,15 @@ def evaluate_model(evaluator_class):
     print(f"\nSaved {results_path.relative_to(REPOSITORY_ROOT)}")
 
 
-def test_all():
-    """Evaluate XGBoost first, followed by LightGBM."""
+def test_all() -> None:
+    """Evaluate XGBoost followed by LightGBM.
+
+    input:
+        - None: None
+
+    output:
+        - None: None
+    """
     for evaluator_class in (XGBoostEvaluator, LightGBMEvaluator):
         evaluate_model(evaluator_class)
 

@@ -29,7 +29,15 @@ RESULTS_DIR = RESULTS_ROOT / "tabpfn"
 RESULTS_PATH = RESULTS_DIR / "tabpfn_results.csv"
 
 
-def test_all():
+def test_all() -> None:
+    """Evaluate TabPFN on every configured medical dataset.
+
+    input:
+        - None: None
+
+    output:
+        - None: None
+    """
     results = []
     for dataset in DATASETS:
         X_train, y_train, X_test, y_test = load_dataset(dataset)

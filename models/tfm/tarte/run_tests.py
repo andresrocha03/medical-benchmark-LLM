@@ -33,8 +33,15 @@ RESULTS_DIR = RESULTS_ROOT / "tarte"
 RESULTS_PATH = RESULTS_DIR / "tarte_results.csv"
 
 
-def test_all():
-    """Run the authors' frozen TARTE featurizer on every medical split."""
+def test_all() -> None:
+    """Run the frozen TARTE featurizer on every medical dataset.
+
+    input:
+        - None: None
+
+    output:
+        - None: None
+    """
     set_random_seed(SEED)
     device = get_torch_device()
     tarte_version = version("tarte-ai")
@@ -94,7 +101,15 @@ def test_all():
     print(f"Saved {RESULTS_PATH}")
 
 
-def main():
+def main() -> None:
+    """Run all TARTE benchmark evaluations.
+
+    input:
+        - None: None
+
+    output:
+        - None: None
+    """
     test_all()
 
 

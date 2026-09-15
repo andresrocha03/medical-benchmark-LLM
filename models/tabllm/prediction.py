@@ -1,9 +1,8 @@
 import os
+from collections.abc import Sequence
+from typing import Any
 
-try:
-    from .config.setup_config import PREDICTION_LABELS, RESULTS_DIR
-except ImportError:  # Allow direct execution from models/tabllm.
-    from models.tabllm.config.setup_config import PREDICTION_LABELS, RESULTS_DIR
+from config.setup_config import PREDICTION_LABELS, RESULTS_DIR
 
 
 SERIALIZATION_COLUMNS = {
@@ -13,23 +12,14 @@ SERIALIZATION_COLUMNS = {
 }
 
 
-def load_model(model_name):
-    """
-    Load a Hugging Face tokenizer and causal language model.
+def load_model(model_name: str) -> tuple[Any, Any]:
+    """Load a Hugging Face tokenizer and causal language model.
 
-    Parameters
-    ----------
-    model_name : str
-        Hugging Face model identifier.
+    input:
+        - model_name: str
 
-    Returns
-    -------
-    tuple
-        A tuple containing:
-        - tokenizer : transformers.PreTrainedTokenizer
-            Loaded tokenizer.
-        - model : transformers.PreTrainedModel
-            Loaded causal language model.
+    output:
+        - tokenizer_and_model: tuple[transformers.PreTrainedTokenizer, transformers.PreTrainedModel]
     """
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -61,28 +51,22 @@ def load_model(model_name):
     return tokenizer, model
 
 
-def build_prompt(serialized_row, task, target_labels, positive_target_label):
-    """
-    Build the classification prompt for a serialized patient row.
+def build_prompt(
+    serialized_row: str,
+    task: str,
+    target_labels: Sequence[str],
+    positive_target_label: str,
+) -> str:
+    """Build the classification prompt for a serialized patient row.
 
-    Parameters
-    ----------
-    serialized_row : str
-        Serialized patient information.
+    input:
+        - serialized_row: str
+        - task: str
+        - target_labels: list[str]
+        - positive_target_label: str
 
-    task : str
-        Dataset-specific classification task.
-
-    target_labels : list of str
-        Semantic labels used by the serialized dataset.
-
-    positive_target_label : str
-        Semantic dataset label represented by the model answer ``positive``.
-
-    Returns
-    -------
-    str
-        Prompt to send to the language model.
+    output:
+        - prompt: str
     """
     negative_target_labels = [
         label for label in target_labels if label != positive_target_label
@@ -119,44 +103,25 @@ Answer:
 
 
 def predict_one_row(
-    serialized_row,
-    task,
-    target_labels,
-    positive_target_label,
-    tokenizer,
-    model,
-):
-    """
-    Generate one model response for a row.
+    serialized_row: str,
+    task: str,
+    target_labels: Sequence[str],
+    positive_target_label: str,
+    tokenizer: Any,
+    model: Any,
+) -> dict[str, str]:
+    """Generate one model response for a serialized row.
 
-    Parameters
-    ----------
-    serialized_row : str
-        Serialized patient data.
+    input:
+        - serialized_row: str
+        - task: str
+        - target_labels: list[str]
+        - positive_target_label: str
+        - tokenizer: transformers.PreTrainedTokenizer
+        - model: transformers.PreTrainedModel
 
-    task : str
-        Dataset-specific task instruction.
-
-    target_labels : list of str
-        Semantic labels used by the serialized dataset.
-
-    positive_target_label : str
-        Semantic dataset label represented by the answer ``positive``.
-
-    tokenizer : transformers.PreTrainedTokenizer
-        Loaded tokenizer.
-
-    model : transformers.PreTrainedModel
-        Loaded model.
-
-    Returns
-    -------
-    dict
-        Dictionary containing:
-        - output : str
-            Full model-generated response.
-        - prompt : str
-            Full prompt sent to the model.
+    output:
+        - prediction_result: dict[str, str]
     """
     import torch
 
@@ -204,15 +169,25 @@ def predict_one_row(
 
 
 def predict_batch(
-    serialized_rows,
-    task,
-    target_labels,
-    positive_target_label,
-    tokenizer,
-    model,
-):
-    """
-    Generate model responses for a batch of serialized rows.
+    serialized_rows: Sequence[str],
+    task: str,
+    target_labels: Sequence[str],
+    positive_target_label: str,
+    tokenizer: Any,
+    model: Any,
+) -> list[dict[str, str]]:
+    """Generate model responses for a batch of serialized rows.
+
+    input:
+        - serialized_rows: list[str]
+        - task: str
+        - target_labels: list[str]
+        - positive_target_label: str
+        - tokenizer: transformers.PreTrainedTokenizer
+        - model: transformers.PreTrainedModel
+
+    output:
+        - prediction_results: list[dict[str, str]]
     """
     import torch
 
@@ -277,59 +252,33 @@ def predict_batch(
 
 
 def run_dataset(
-    dataset_name,
-    dataset_config,
-    model_key,
-    tokenizer,
-    model,
-    serialization_style="text_template",
-    max_examples=None,
-    run_tag=None,
-    batch_size=1,
-    model_name=None,
-):
-    """
-    Run one model on one dataset and save raw responses.
+    dataset_name: str,
+    dataset_config: dict[str, Any],
+    model_key: str,
+    tokenizer: Any,
+    model: Any,
+    serialization_style: str = "text_template",
+    max_examples: int | None = None,
+    run_tag: str | None = None,
+    batch_size: int = 1,
+    model_name: str | None = None,
+) -> dict[str, Any]:
+    """Run one model on one dataset and save its raw responses.
 
-    Parameters
-    ----------
-    dataset_name : str
-        Dataset name.
+    input:
+        - dataset_name: str
+        - dataset_config: dict
+        - model_key: str
+        - tokenizer: transformers.PreTrainedTokenizer
+        - model: transformers.PreTrainedModel
+        - serialization_style: str
+        - max_examples: int | None
+        - run_tag: str | None
+        - batch_size: int
+        - model_name: str | None
 
-    dataset_config : dict
-        Dataset configuration containing path, task, and choices.
-
-    model_key : str
-        Short model name used for saving files.
-
-    tokenizer : transformers.PreTrainedTokenizer
-        Loaded tokenizer.
-
-    model : transformers.PreTrainedModel
-        Loaded model.
-
-    serialization_style : str
-        Serialization style to use as model input. Supported values are:
-        "text_template", "json", and "llm".
-
-    max_examples : int, optional
-        If provided, only the first `max_examples` rows are processed.
-
-    run_tag : str, optional
-        Optional tag added to output filenames, such as "test".
-
-    batch_size : int
-        Number of rows to generate at once. Defaults to 1.
-
-    model_name : str, optional
-        Full model identifier displayed in progress messages. Falls back to
-        ``model_key`` when omitted.
-
-    Returns
-    -------
-    dict
-        Summary dictionary containing dataset name, model name,
-        number of examples, and output file path.
+    output:
+        - run_metadata: dict
     """
     import pandas as pd
 
@@ -446,9 +395,15 @@ def run_dataset(
     return run_metadata
 
 
-def clear_model_resources(model, tokenizer):
-    """
-    Release model references and clear CUDA memory when available.
+def clear_model_resources(model: Any, tokenizer: Any) -> None:
+    """Release model references and clear CUDA memory when available.
+
+    input:
+        - model: transformers.PreTrainedModel
+        - tokenizer: transformers.PreTrainedTokenizer
+
+    output:
+        - None: None
     """
     import gc
     import torch

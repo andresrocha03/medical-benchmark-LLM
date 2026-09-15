@@ -1,30 +1,38 @@
 import argparse
 import os
+from collections.abc import Sequence
 from pathlib import Path
-import sys
 from time import perf_counter
+from typing import Any
 
 import pandas as pd
 
-# Support: cd models/tabllm && python3 run_test.py
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPOSITORY_ROOT))
-
-from models.tabllm.config.setup_config import DATASETS, MODELS, RESULTS_DIR
-from models.tabllm.prediction import (
+from compute_metrics import evaluate_and_save_run
+from config.setup_config import DATASETS, MODELS, RESULTS_DIR
+from prediction import (
     SERIALIZATION_COLUMNS,
     clear_model_resources,
     load_model,
     run_dataset,
 )
-from models.tabllm.compute_metrics import evaluate_and_save_run
 
 
 RESULT_KEY = ["dataset", "model", "serialization"]
 
 
-def upsert_result(results, result):
-    """Replace an existing trio result or append it when it is new."""
+def upsert_result(
+    results: pd.DataFrame,
+    result: dict[str, Any],
+) -> pd.DataFrame:
+    """Replace a matching run result or append it when it is new.
+
+    input:
+        - results: pandas.DataFrame
+        - result: dict
+
+    output:
+        - updated_results: pandas.DataFrame
+    """
     if results.empty:
         return pd.DataFrame([result])
 
@@ -39,16 +47,21 @@ def upsert_result(results, result):
 
 
 def run_model_tests(
-    models=None,
-    datasets=None,
-    serializations=None,
-    batch=1,
-):
-    """
-    Run all configured models on all configured datasets.
+    models: Sequence[str] | None = None,
+    datasets: Sequence[str] | None = None,
+    serializations: Sequence[str] | None = None,
+    batch: int = 1,
+) -> pd.DataFrame:
+    """Run selected models, datasets, and serialization strategies.
 
-    Saves one raw-response CSV and confusion matrix per trio, plus one results
-    CSV containing the standard benchmark metrics for every trio.
+    input:
+        - models: list[str] | None
+        - datasets: list[str] | None
+        - serializations: list[str] | None
+        - batch: int
+
+    output:
+        - all_results: pandas.DataFrame
     """
     if batch < 1:
         raise ValueError("--batch must be at least 1.")
@@ -142,7 +155,15 @@ def run_model_tests(
     return all_results
 
 
-def main():
+def main() -> None:
+    """Parse command-line arguments and run the selected evaluations.
+
+    input:
+        - None: None
+
+    output:
+        - None: None
+    """
     parser = argparse.ArgumentParser()
 
     parser.add_argument(

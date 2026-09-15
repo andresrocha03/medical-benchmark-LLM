@@ -34,8 +34,15 @@ RESULTS_DIR = RESULTS_ROOT / "tabicl_v2"
 RESULTS_PATH = RESULTS_DIR / "tabicl_v2_results.csv"
 
 
-def test_all():
-    """Run one leakage-free TabICLv2 evaluation per medical dataset."""
+def test_all() -> None:
+    """Run one leakage-free TabICLv2 evaluation per medical dataset.
+
+    input:
+        - None: None
+
+    output:
+        - None: None
+    """
     results = []
     for dataset_name in DATASETS:
         X_train, y_train, X_test, y_test = load_dataset(

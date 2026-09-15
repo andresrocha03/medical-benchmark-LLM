@@ -1,57 +1,50 @@
 import os
 import re
+import sys
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
 
 import pandas as pd
 from sklearn.metrics import accuracy_score, confusion_matrix, f1_score
 
-try:
-    from ..utils import (
-        print_row_progress,
-        print_run_context,
-        save_confusion_matrix,
-    )
-except ImportError:  # Allow direct execution from models/tabllm.
-    import sys
+sys.path.insert(0, str(Path.cwd().parent))
 
-    REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-    sys.path.insert(0, str(REPOSITORY_ROOT))
-    from models.utils import (
-        print_row_progress,
-        print_run_context,
-        save_confusion_matrix,
-    )
-
-try:
-    from .config.setup_config import DATASETS, PREDICTION_LABELS, RESULTS_DIR
-except ImportError:  # Allow direct execution from models/tabllm.
-    from models.tabllm.config.setup_config import (
-        DATASETS,
-        PREDICTION_LABELS,
-        RESULTS_DIR,
-    )
+from config.setup_config import DATASETS, PREDICTION_LABELS, RESULTS_DIR
+from utils import print_row_progress, print_run_context, save_confusion_matrix
 
 
 INVALID_LABEL = "__invalid__"
 
 
-def normalize_text(text):
-    """
-    Normalize model output and labels for robust matching.
+def normalize_text(text: object) -> str:
+    """Normalize model output or label text for robust matching.
+
+    input:
+        - text: object
+
+    output:
+        - normalized_text: str
     """
     text = "" if pd.isna(text) else str(text).lower()
     text = re.sub(r"[^a-z0-9]+", " ", text)
     return re.sub(r"\s+", " ", text).strip()
 
 
-def find_label_mentions(output, labels):
-    """
-    Find valid label mentions in a noisy model output.
+def find_label_mentions(
+    output: object,
+    labels: Sequence[str],
+) -> list[tuple[int, int, str]]:
+    """Find valid label mentions in a noisy model output.
 
-    Longer labels are matched first so labels such as
-    "no heart disease" are not double-counted as "heart disease".
+    input:
+        - output: object
+        - labels: list[str] | tuple[str, ...]
+
+    output:
+        - mentions: list[tuple[int, int, str]]
     """
     normalized_output = normalize_text(output)
     mentions = []
@@ -72,17 +65,18 @@ def find_label_mentions(output, labels):
     return mentions
 
 
-def parse_prediction(output, labels):
-    """
-    Parse one model output into a valid label when possible.
+def parse_prediction(
+    output: object,
+    labels: Sequence[str],
+) -> tuple[str, str]:
+    """Parse one model output into a label and parsing status.
 
-    Returns
-    -------
-    tuple
-        (parsed_label, status), where status is one of:
-        - "parsed": exactly one valid label was found.
-        - "non_relevant": no valid label was found.
-        - "ambiguous": more than one distinct valid label was found.
+    input:
+        - output: object
+        - labels: list[str] | tuple[str, ...]
+
+    output:
+        - prediction_and_status: tuple[str, str]
     """
     mentions = find_label_mentions(output, labels)
     mentioned_labels = []
@@ -100,9 +94,18 @@ def parse_prediction(output, labels):
     return INVALID_LABEL, "ambiguous"
 
 
-def extract_run_info(raw_response_path, results_dir=RESULTS_DIR):
-    """
-    Infer dataset, serialization, and model from a raw-response path.
+def extract_run_info(
+    raw_response_path: Path,
+    results_dir: Path = RESULTS_DIR,
+) -> tuple[str, str, str]:
+    """Infer dataset, serialization, and model from a raw-response path.
+
+    input:
+        - raw_response_path: pathlib.Path
+        - results_dir: pathlib.Path
+
+    output:
+        - run_info: tuple[str, str, str]
     """
     relative_path = raw_response_path.relative_to(results_dir)
     dataset = relative_path.parts[0]
@@ -115,14 +118,22 @@ def extract_run_info(raw_response_path, results_dir=RESULTS_DIR):
 
 
 def evaluate_raw_responses(
-    raw_response_path,
-    dataset_config,
+    raw_response_path: str | Path,
+    dataset_config: dict[str, Any],
     *,
-    dataset_name="unknown",
-    model_name="unknown",
-):
-    """
-    Compute metrics for one raw-response CSV.
+    dataset_name: str = "unknown",
+    model_name: str = "unknown",
+) -> tuple[dict[str, Any], pd.DataFrame, pd.DataFrame]:
+    """Compute metrics and parsed predictions for one raw-response CSV.
+
+    input:
+        - raw_response_path: str | pathlib.Path
+        - dataset_config: dict
+        - dataset_name: str
+        - model_name: str
+
+    output:
+        - evaluation: tuple[dict, pandas.DataFrame, pandas.DataFrame]
     """
     df = pd.read_csv(raw_response_path)
     print_run_context(model_name, dataset_name, total_rows=len(df))
@@ -237,26 +248,47 @@ def evaluate_raw_responses(
     return metrics, confusion_df, evaluated_df
 
 
-def discover_raw_response_files(results_dir=RESULTS_DIR):
-    """
-    Discover raw response CSV files under the results directory.
+def discover_raw_response_files(
+    results_dir: str | Path = RESULTS_DIR,
+) -> list[Path]:
+    """Discover raw-response CSV files under the results directory.
+
+    input:
+        - results_dir: str | pathlib.Path
+
+    output:
+        - raw_response_files: list[pathlib.Path]
     """
     results_path = Path(results_dir)
     return sorted(results_path.glob("*/*/*_raw_responses.csv"))
 
 
 def evaluate_and_save_run(
-    raw_response_path,
+    raw_response_path: str | Path,
     *,
-    dataset,
-    serialization,
-    model,
-    prediction_time_seconds=None,
-    total_examples=None,
-    batch_size=None,
-    results_dir=RESULTS_DIR,
-):
-    """Evaluate one model/serialization/dataset trio and save its matrix."""
+    dataset: str,
+    serialization: str,
+    model: str,
+    prediction_time_seconds: float | None = None,
+    total_examples: int | None = None,
+    batch_size: int | None = None,
+    results_dir: str | Path = RESULTS_DIR,
+) -> dict[str, Any]:
+    """Evaluate one run, save its confusion matrix, and return its result.
+
+    input:
+        - raw_response_path: str | pathlib.Path
+        - dataset: str
+        - serialization: str
+        - model: str
+        - prediction_time_seconds: float | None
+        - total_examples: int | None
+        - batch_size: int | None
+        - results_dir: str | pathlib.Path
+
+    output:
+        - result: dict
+    """
     raw_response_path = Path(raw_response_path)
     metrics, _, evaluated_df = evaluate_raw_responses(
         raw_response_path,
@@ -297,9 +329,16 @@ def evaluate_and_save_run(
     }
 
 
-def generate_final_metrics(results_dir=RESULTS_DIR):
-    """
-    Rebuild the trio-level results CSV from saved raw responses.
+def generate_final_metrics(
+    results_dir: str | Path = RESULTS_DIR,
+) -> pd.DataFrame:
+    """Rebuild the run-level results CSV from saved raw responses.
+
+    input:
+        - results_dir: str | pathlib.Path
+
+    output:
+        - final_metrics: pandas.DataFrame
     """
     results_path = Path(results_dir)
     results_path.mkdir(parents=True, exist_ok=True)

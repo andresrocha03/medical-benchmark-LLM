@@ -9,5 +9,8 @@ venv/*
 # Others
 token.txt
 __pycache__/
-
 results/*
+.codex
+.agents
+article.md
+

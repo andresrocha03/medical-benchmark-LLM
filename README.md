@@ -22,3 +22,5 @@ Corrections from original project:
 - Reorganized the TabLLM to integrate with the project structure.
 
 - Included the demand for receiving standard binary answers ("positive" or "negative") when evaluating the zero-shot with LLMs.
+
+- Documented functions.

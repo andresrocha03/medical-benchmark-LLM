@@ -1,6 +1,11 @@
 """Reusable TabICLv2 wrapper for binary tabular classification."""
 
+from __future__ import annotations
+
 from time import perf_counter
+
+import numpy as np
+import pandas as pd
 
 from models.utils import (
     compute_binary_metrics,
@@ -31,12 +36,24 @@ class TabICLv2Evaluator:
 
     def __init__(
         self,
-        n_estimators=8,
-        device=None,
-        kv_cache=True,
-        random_state=RANDOM_STATE,
-        checkpoint_version=CHECKPOINT_VERSION,
-    ):
+        n_estimators: int = 8,
+        device: str | None = None,
+        kv_cache: bool = True,
+        random_state: int = RANDOM_STATE,
+        checkpoint_version: str = CHECKPOINT_VERSION,
+    ) -> None:
+        """Configure a pretrained TabICLv2 classifier.
+
+        input:
+            - n_estimators: int
+            - device: str | None
+            - kv_cache: bool
+            - random_state: int
+            - checkpoint_version: str
+
+        output:
+            - None: None
+        """
         self.classifier = TabICLClassifier(
             n_estimators=n_estimators,
             device=device,
@@ -47,19 +64,58 @@ class TabICLv2Evaluator:
             checkpoint_version=checkpoint_version,
         )
 
-    def fit(self, X_train, y_train):
+    def fit(
+        self,
+        X_train: pd.DataFrame | np.ndarray,
+        y_train: np.ndarray,
+    ) -> TabICLv2Evaluator:
+        """Fit the classifier on the supplied training context.
+
+        input:
+            - X_train: pandas.DataFrame | numpy.ndarray
+            - y_train: numpy.ndarray
+
+        output:
+            - evaluator: TabICLv2Evaluator
+        """
         self.classifier.fit(X_train, y_train)
         return self
 
-    def predict_positive_probability(self, X):
-        """Return the probability assigned to the benchmark's positive class."""
+    def predict_positive_probability(
+        self,
+        X: pd.DataFrame | np.ndarray,
+    ) -> np.ndarray:
+        """Return probabilities assigned to the positive class.
+
+        input:
+            - X: pandas.DataFrame | numpy.ndarray
+
+        output:
+            - positive_probabilities: numpy.ndarray
+        """
         probabilities = self.classifier.predict_proba(X)
         return select_positive_probabilities(
             probabilities, self.classifier.classes_
         )
 
-    def evaluate(self, X_train, y_train, X_test, y_test):
-        """Fit on training data and compute held-out benchmark metrics."""
+    def evaluate(
+        self,
+        X_train: pd.DataFrame | np.ndarray,
+        y_train: np.ndarray,
+        X_test: pd.DataFrame | np.ndarray,
+        y_test: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray, dict[str, float]]:
+        """Fit the classifier and compute held-out benchmark metrics.
+
+        input:
+            - X_train: pandas.DataFrame | numpy.ndarray
+            - y_train: numpy.ndarray
+            - X_test: pandas.DataFrame | numpy.ndarray
+            - y_test: numpy.ndarray
+
+        output:
+            - evaluation: tuple[numpy.ndarray, numpy.ndarray, dict[str, float]]
+        """
         training_start = perf_counter()
         self.fit(X_train, y_train)
         train_time_seconds = perf_counter() - training_start
@@ -83,7 +139,24 @@ class TabICLv2Evaluator:
         return predictions, positive_probabilities, metrics
 
 
-def evaluate_tabicl_v2(X_train, y_train, X_test, y_test, **model_options):
-    """Convenience function matching the other foundation-model wrappers."""
+def evaluate_tabicl_v2(
+    X_train: pd.DataFrame | np.ndarray,
+    y_train: np.ndarray,
+    X_test: pd.DataFrame | np.ndarray,
+    y_test: np.ndarray,
+    **model_options: object,
+) -> tuple[np.ndarray, np.ndarray, dict[str, float]]:
+    """Evaluate TabICLv2 with optional classifier configuration.
+
+    input:
+        - X_train: pandas.DataFrame | numpy.ndarray
+        - y_train: numpy.ndarray
+        - X_test: pandas.DataFrame | numpy.ndarray
+        - y_test: numpy.ndarray
+        - model_options: object
+
+    output:
+        - evaluation: tuple[numpy.ndarray, numpy.ndarray, dict[str, float]]
+    """
     evaluator = TabICLv2Evaluator(**model_options)
     return evaluator.evaluate(X_train, y_train, X_test, y_test)

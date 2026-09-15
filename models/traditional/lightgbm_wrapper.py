@@ -1,5 +1,11 @@
 """Cross-validated LightGBM wrapper for the traditional-model benchmark."""
 
+from __future__ import annotations
+
+from typing import Any
+
+import numpy as np
+import pandas as pd
 from lightgbm import LGBMClassifier
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
 
@@ -9,6 +15,7 @@ from models.utils import CROSS_VALIDATION_SCORING
 RANDOM_STATE = 42
 CV_FOLDS = 5
 
+
 class LightGBMEvaluator:
     """Tune LightGBM on training folds and expose the selected estimator."""
 
@@ -16,16 +23,34 @@ class LightGBMEvaluator:
 
     def __init__(
         self,
-        random_state=RANDOM_STATE,
-        cv_folds=CV_FOLDS,
-        search_jobs=-1,
-    ):
+        random_state: int = RANDOM_STATE,
+        cv_folds: int = CV_FOLDS,
+        search_jobs: int = -1,
+    ) -> None:
+        """Configure the LightGBM cross-validation search.
+
+        input:
+            - random_state: int
+            - cv_folds: int
+            - search_jobs: int
+
+        output:
+            - None: None
+        """
         self.random_state = random_state
         self.cv_folds = cv_folds
         self.search_jobs = search_jobs
         self.search_ = None
 
-    def _build_search(self):
+    def _build_search(self) -> GridSearchCV:
+        """Build the configured LightGBM grid search.
+
+        input:
+            - None: None
+
+        output:
+            - search: sklearn.model_selection.GridSearchCV
+        """
         # Limit each fit to one thread while GridSearchCV distributes the fits.
         estimator = LGBMClassifier(
             objective="binary",
@@ -55,22 +80,58 @@ class LightGBMEvaluator:
             n_jobs=self.search_jobs,
         )
 
-    def fit(self, X_train, y_train):
+    def fit(
+        self,
+        X_train: pd.DataFrame | np.ndarray,
+        y_train: np.ndarray,
+    ) -> LightGBMEvaluator:
+        """Fit the LightGBM grid search on training data.
+
+        input:
+            - X_train: pandas.DataFrame | numpy.ndarray
+            - y_train: numpy.ndarray
+
+        output:
+            - evaluator: LightGBMEvaluator
+        """
         self.search_ = self._build_search()
         self.search_.fit(X_train, y_train)
         return self
 
-    def _require_fitted(self):
+    def _require_fitted(self) -> None:
+        """Raise an error when the evaluator has not been fitted.
+
+        input:
+            - None: None
+
+        output:
+            - None: None
+        """
         if self.search_ is None or not hasattr(self.search_, "best_estimator_"):
             raise RuntimeError("Call fit before requesting LightGBM results.")
 
     @property
-    def best_parameters(self):
+    def best_parameters(self) -> dict[str, Any]:
+        """Return the selected LightGBM hyperparameters.
+
+        input:
+            - None: None
+
+        output:
+            - best_parameters: dict[str, Any]
+        """
         self._require_fitted()
         return self.search_.best_params_
 
-    def cross_validation_metrics(self):
-        """Return mean validation metrics for the selected configuration."""
+    def cross_validation_metrics(self) -> dict[str, float]:
+        """Return validation metrics for the selected configuration.
+
+        input:
+            - None: None
+
+        output:
+            - validation_metrics: dict[str, float]
+        """
         self._require_fitted()
         best_index = self.search_.best_index_
         return {
@@ -78,7 +139,17 @@ class LightGBMEvaluator:
             for metric in CROSS_VALIDATION_SCORING
         }
 
-    def predict_proba(self, X):
-        """Return positive-class probabilities from the selected estimator."""
+    def predict_proba(
+        self,
+        X: pd.DataFrame | np.ndarray,
+    ) -> np.ndarray:
+        """Return positive-class probabilities from the selected estimator.
+
+        input:
+            - X: pandas.DataFrame | numpy.ndarray
+
+        output:
+            - positive_probabilities: numpy.ndarray
+        """
         self._require_fitted()
         return self.search_.best_estimator_.predict_proba(X)[:, 1]

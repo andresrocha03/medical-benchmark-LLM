@@ -1,6 +1,8 @@
 import argparse
 import json
+from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -8,60 +10,55 @@ import pandas as pd
 SERIALIZATION_CHOICES = ("text_template", "json", "llm")
 DEFAULT_DATASETS = ("hepatitis", "heart", "diabetes")
 PROGRESS_INTERVAL = 150
-REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
-CONFIG_DIR = REPOSITORY_ROOT / "models" / "tabllm" / "config"
+CONFIG_DIR = Path("../../../models/tabllm/config")
 
 
-def config_path_from_dataset(dataset_name):
-    """
-    Build the expected config path for a dataset name.
+def config_path_from_dataset(dataset_name: str) -> Path:
+    """Build the expected configuration path for a dataset name.
+
+    input:
+        - dataset_name: str
+
+    output:
+        - config_path: pathlib.Path
     """
     return CONFIG_DIR / f"{dataset_name}_config.json"
 
 
-def resolve_repo_path(path):
-    """Resolve config paths consistently, regardless of the current directory."""
-    path = Path(path)
-    return path if path.is_absolute() else REPOSITORY_ROOT / path
+def resolve_configured_path(path: str | Path) -> Path:
+    """Resolve a configured project path from the serialization directory.
 
+    input:
+        - path: str | pathlib.Path
 
-def load_config(config_path):
+    output:
+        - configured_path: pathlib.Path
     """
-    Load the dataset processing configuration from a JSON file.
+    path = Path(path)
+    return path if path.is_absolute() else Path("../../..") / path
 
-    Parameters
-    ----------
-    config_path : str
-        Path to the JSON configuration file.
 
-    Returns
-    -------
-    dict
-        Configuration dictionary containing dataset path, target column,
-        output path, column mappings, numerical columns, and optional loading
-        settings such as format, block size, used indices, and column names.
+def load_config(config_path: str | Path) -> dict[str, Any]:
+    """Load a dataset processing configuration from JSON.
+
+    input:
+        - config_path: str | pathlib.Path
+
+    output:
+        - config: dict[str, Any]
     """
     with Path(config_path).open("r", encoding="utf-8") as file:
         return json.load(file)
 
 
-def clean_category_value(x):
-    """
-    Clean a categorical value and convert it to a string key.
+def clean_category_value(x: Any) -> str | float:
+    """Convert a categorical value to a mapping key or NaN.
 
-    This function handles missing values, question marks, and values such as
-    1, 1.0, or 1.2 by converting them to integer category keys. The result is
-    returned as a string because JSON mapping keys are strings.
+    input:
+        - x: Any
 
-    Parameters
-    ----------
-    x : any
-        Raw categorical value from the dataset.
-
-    Returns
-    -------
-    str or numpy.nan
-        Cleaned category value as a string, or np.nan if the value is missing.
+    output:
+        - cleaned_value: str | float
     """
     if pd.isna(x) or x == "?":
         return np.nan
@@ -69,19 +66,14 @@ def clean_category_value(x):
     return str(int(float(x)))
 
 
-def clean_numeric_value(x):
-    """
-    Clean a numeric value and convert it to float.
+def clean_numeric_value(x: Any) -> float:
+    """Convert a numeric value to a float or NaN.
 
-    Parameters
-    ----------
-    x : any
-        Raw numeric value from the dataset.
+    input:
+        - x: Any
 
-    Returns
-    -------
-    float or numpy.nan
-        Numeric value as a float, or np.nan if the value is missing.
+    output:
+        - cleaned_value: float
     """
     if pd.isna(x) or x == "?":
         return np.nan
@@ -89,13 +81,18 @@ def clean_numeric_value(x):
     return float(x)
 
 
-def map_continuous_category(x, mapping):
-    """
-    Map a continuous value to the nearest categorical prototype.
+def map_continuous_category(
+    x: Any,
+    mapping: dict[str, str],
+) -> str:
+    """Map a continuous value to its nearest categorical prototype.
 
-    Example:
-        1.7 -> 2 -> "more"
-        0.8 -> 1 -> "typical"
+    input:
+        - x: Any
+        - mapping: dict[str, str]
+
+    output:
+        - category: str
     """
     if pd.isna(x) or x == "?":
         return "unknown"
@@ -110,33 +107,21 @@ def map_continuous_category(x, mapping):
     return mapping[nearest]
 
 
-def load_dataframe(config, filepath=None):
-    """
-    Load a dataset according to the format specified in the config file.
+def load_dataframe(
+    config: dict[str, Any],
+    filepath: str | Path | None = None,
+) -> pd.DataFrame:
+    """Load a configured CSV dataset into a dataframe.
 
-    The preprocessing notebooks export ordinary CSV files with headers. A
-    headerless CSV can also be loaded when ``has_header`` is false and
-    ``column_names`` is configured.
+    input:
+        - config: dict[str, Any]
+        - filepath: str | pathlib.Path | None
 
-    Parameters
-    ----------
-    config : dict
-        Configuration dictionary. Common keys are:
-        - filepath : str
-            Path to the dataset file.
-        - has_header : bool
-            Whether the CSV file already contains column names.
-            Defaults to True.
-        - column_names : list of str
-            Column names to use when has_header is False.
-
-    Returns
-    -------
-    pandas.DataFrame
-        Loaded dataframe ready for cleaning and serialization.
+    output:
+        - dataframe: pandas.DataFrame
     """
 
-    filepath = resolve_repo_path(filepath or config["filepath"])
+    filepath = resolve_configured_path(filepath or config["filepath"])
 
     if config.get("has_header", True):
         return pd.read_csv(filepath)
@@ -148,27 +133,15 @@ def load_dataframe(config, filepath=None):
     )
 
 
-def serialize_row(row, target_col):
-    """
-    Convert one dataframe row into a natural-language text serialization.
+def serialize_row(row: pd.Series, target_col: str) -> str:
+    """Convert one row into a sentence-per-feature text serialization.
 
-    Each non-target column is converted into a sentence of the form:
-    "The column_name is value."
+    input:
+        - row: pandas.Series
+        - target_col: str
 
-    Missing values are serialized as "unknown".
-
-    Parameters
-    ----------
-    row : pandas.Series
-        One row from the dataframe.
-
-    target_col : str
-        Name of the target column to exclude from serialization.
-
-    Returns
-    -------
-    str
-        Serialized text representation of the row.
+    output:
+        - serialized_row: str
     """
     sentences = []
 
@@ -184,9 +157,14 @@ def serialize_row(row, target_col):
     return " ".join(sentences)
 
 
-def serialization_value(value):
-    """
-    Convert a dataframe value into a stable serialization value.
+def serialization_value(value: Any) -> Any:
+    """Convert a dataframe value into a stable serializable value.
+
+    input:
+        - value: Any
+
+    output:
+        - serialized_value: Any
     """
     if pd.isna(value):
         return "unknown"
@@ -197,12 +175,15 @@ def serialization_value(value):
     return value
 
 
-def serialize_row_json(row, target_col):
-    """
-    Convert one dataframe row into one-line JSON serialization.
+def serialize_row_json(row: pd.Series, target_col: str) -> str:
+    """Convert one row into a one-line JSON serialization.
 
-    Each non-target column is serialized as a JSON key-value pair. Missing
-    values are written as "unknown" to match the text-template behavior.
+    input:
+        - row: pandas.Series
+        - target_col: str
+
+    output:
+        - serialized_row: str
     """
     row_dict = {}
 
@@ -215,14 +196,15 @@ def serialize_row_json(row, target_col):
     return json.dumps(row_dict, ensure_ascii=True)
 
 
-def serialize_row_llm_style(row, target_col):
-    """
-    Convert one dataframe row into an LLM-style natural-language sentence.
+def serialize_row_llm_style(row: pd.Series, target_col: str) -> str:
+    """Convert one row into a deterministic LLM-style sentence.
 
-    This deterministic fallback keeps cluster preprocessing self-contained.
-    If you generate natural-language rows with a separate LLM pass, store them
-    in the same `serialized_llm` column and the experiment runner will use
-    them unchanged.
+    input:
+        - row: pandas.Series
+        - target_col: str
+
+    output:
+        - serialized_row: str
     """
     phrases = []
 
@@ -235,9 +217,18 @@ def serialize_row_llm_style(row, target_col):
     return f"The patient record describes a person with {', '.join(phrases)}."
 
 
-def build_llm_serialization_prompt(row, target_col):
-    """
-    Build the prompt used to ask an LLM for natural-language row serialization.
+def build_llm_serialization_prompt(
+    row: pd.Series,
+    target_col: str,
+) -> str:
+    """Build a prompt for LLM-based row serialization.
+
+    input:
+        - row: pandas.Series
+        - target_col: str
+
+    output:
+        - prompt: str
     """
     feature_dict = {}
 
@@ -260,9 +251,24 @@ Sentence:
 """.strip()
 
 
-def generate_llm_serialization(row, target_col, tokenizer, model, max_new_tokens):
-    """
-    Generate one natural-language row serialization with an LLM.
+def generate_llm_serialization(
+    row: pd.Series,
+    target_col: str,
+    tokenizer: Any,
+    model: Any,
+    max_new_tokens: int,
+) -> str:
+    """Generate one natural-language row serialization with an LLM.
+
+    input:
+        - row: pandas.Series
+        - target_col: str
+        - tokenizer: Any
+        - model: Any
+        - max_new_tokens: int
+
+    output:
+        - serialized_row: str
     """
     import torch
 
@@ -299,9 +305,14 @@ def generate_llm_serialization(row, target_col, tokenizer, model, max_new_tokens
     ).strip()
 
 
-def load_llm_serializer(model_name):
-    """
-    Load the optional model used to create LLM serializations.
+def load_llm_serializer(model_name: str) -> tuple[Any, Any]:
+    """Load the optional tokenizer and model used for LLM serialization.
+
+    input:
+        - model_name: str
+
+    output:
+        - tokenizer_and_model: tuple[Any, Any]
     """
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -321,8 +332,26 @@ def load_llm_serializer(model_name):
     return tokenizer, model
 
 
-def serialize_rows(df, serializer, *, model_name, dataset_name, serialization):
-    """Serialize rows with visible run context and periodic progress output."""
+def serialize_rows(
+    df: pd.DataFrame,
+    serializer: Callable[[pd.Series], str],
+    *,
+    model_name: str,
+    dataset_name: str,
+    serialization: str,
+) -> list[str]:
+    """Serialize dataframe rows while reporting periodic progress.
+
+    input:
+        - df: pandas.DataFrame
+        - serializer: Callable[[pandas.Series], str]
+        - model_name: str
+        - dataset_name: str
+        - serialization: str
+
+    output:
+        - serialized_rows: list[str]
+    """
     total_rows = len(df)
     print(
         f"\nModel: {model_name} | Dataset: {dataset_name} "
@@ -346,54 +375,31 @@ def serialize_rows(df, serializer, *, model_name, dataset_name, serialization):
 
 
 def process_dataset(
-    config,
-    filepath=None,
-    output_file=None,
-    serializations=SERIALIZATION_CHOICES,
-    llm_tokenizer=None,
-    llm_model=None,
-    llm_max_new_tokens=80,
-    dataset_name="unknown",
-    serializer_model_name="deterministic serializer",
-):
-    """
-    Load, clean, serialize, and save a tabular dataset.
+    config: dict[str, Any],
+    filepath: str | Path | None = None,
+    output_file: str | Path | None = None,
+    serializations: Sequence[str] = SERIALIZATION_CHOICES,
+    llm_tokenizer: Any = None,
+    llm_model: Any = None,
+    llm_max_new_tokens: int = 80,
+    dataset_name: str = "unknown",
+    serializer_model_name: str = "deterministic serializer",
+) -> pd.DataFrame:
+    """Load, clean, serialize, and save one tabular dataset split.
 
-    This function is dataset-general. The behavior is controlled by the config
-    file, so the same code can process both the Hepatitis dataset and the Heart
-    dataset.
+    input:
+        - config: dict[str, Any]
+        - filepath: str | pathlib.Path | None
+        - output_file: str | pathlib.Path | None
+        - serializations: Sequence[str]
+        - llm_tokenizer: Any
+        - llm_model: Any
+        - llm_max_new_tokens: int
+        - dataset_name: str
+        - serializer_model_name: str
 
-    Processing steps
-    ----------------
-    1. Load the dataset using `load_dataframe`.
-    2. Clean and map the target column.
-    3. Clean and map categorical columns.
-    4. Clean numerical columns.
-    5. Serialize each row into text.
-    6. Save the serialized text and target label to a CSV file.
-
-    Parameters
-    ----------
-    config : dict
-        Configuration dictionary with keys such as:
-        - input_files : dict
-            Train/test input paths used by :func:`serialize`.
-        - output_files : dict
-            Matching train/test serialized output paths.
-        - target_col : str
-            Name of the target column.
-        - target_mapping : dict
-            Mapping from raw target values to target labels.
-        - column_mappings : dict
-            Mapping rules for categorical columns.
-        - numeric_cols : list of str
-            Names of numerical columns to clean.
-
-    Returns
-    -------
-    pandas.DataFrame
-        Processed dataframe containing the cleaned columns and the
-        `serialized_text` column.
+    output:
+        - processed_dataframe: pandas.DataFrame
     """
     df = load_dataframe(config, filepath=filepath)
 
@@ -484,7 +490,7 @@ def process_dataset(
 
     output_columns.append(target_col)
 
-    output_file = resolve_repo_path(output_file or config["output_file"])
+    output_file = resolve_configured_path(output_file or config["output_file"])
     output_file.parent.mkdir(parents=True, exist_ok=True)
     df[output_columns].to_csv(output_file, index=False)
 
@@ -492,26 +498,25 @@ def process_dataset(
 
 
 def serialize(
-    config_path,
-    serializations=SERIALIZATION_CHOICES,
-    llm_tokenizer=None,
-    llm_model=None,
-    llm_max_new_tokens=80,
-    serializer_model_name="deterministic serializer",
-):
-    """
-    Main function to process the dataset based on the provided configuration.
+    config_path: str | Path,
+    serializations: Sequence[str] = SERIALIZATION_CHOICES,
+    llm_tokenizer: Any = None,
+    llm_model: Any = None,
+    llm_max_new_tokens: int = 80,
+    serializer_model_name: str = "deterministic serializer",
+) -> dict[str, pd.DataFrame]:
+    """Serialize every configured split for one dataset.
 
-    Parameters
-    ----------
-    config_path : str
-        Path to the JSON configuration file.
+    input:
+        - config_path: str | pathlib.Path
+        - serializations: Sequence[str]
+        - llm_tokenizer: Any
+        - llm_model: Any
+        - llm_max_new_tokens: int
+        - serializer_model_name: str
 
-    Returns
-    -------
-    pandas.DataFrame
-        Processed dataframe containing the cleaned columns and the
-        `serialized_text` column.
+    output:
+        - serialized_splits: dict[str, pandas.DataFrame]
     """
     config = load_config(config_path)
     dataset_name = Path(config_path).stem.removesuffix("_config")
@@ -552,14 +557,23 @@ def serialize(
 
 
 def run_serialization(
-    datasets=None,
-    configs=None,
-    serializations=None,
-    llm_model=None,
-    llm_max_new_tokens=80,
-):
-    """
-    Serialize configured datasets from Python code or notebooks.
+    datasets: Sequence[str] | None = None,
+    configs: Sequence[str | Path] | None = None,
+    serializations: Sequence[str] | None = None,
+    llm_model: str | None = None,
+    llm_max_new_tokens: int = 80,
+) -> dict[str, dict[str, pd.DataFrame]]:
+    """Serialize selected datasets from Python code or notebooks.
+
+    input:
+        - datasets: Sequence[str] | None
+        - configs: Sequence[str | pathlib.Path] | None
+        - serializations: Sequence[str] | None
+        - llm_model: str | None
+        - llm_max_new_tokens: int
+
+    output:
+        - serialized_datasets: dict[str, dict[str, pandas.DataFrame]]
     """
     if configs is None:
         if datasets is None:
@@ -601,16 +615,21 @@ def run_serialization(
     return serialized_datasets
 
 
-def main():
+def main() -> None:
+    """Parse command-line arguments and run dataset serialization.
+
+    input:
+        - None: None
+
+    output:
+        - None: None
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--datasets",
         nargs="+",
         default=list(DEFAULT_DATASETS),
-        help=(
-            "Dataset names to serialize. Uses "
-            "models/tabllm/config/{dataset_name}_config.json."
-        ),
+        help="Dataset names to serialize using their matching config files.",
     )
     parser.add_argument(
         "--configs",
