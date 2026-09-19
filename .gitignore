@@ -14,6 +14,16 @@ results/*
 .agents
 article.md
 
+# Keep result documentation while ignoring generated result files
+!/results/*/
+results/*/*
+!/results/*/README.md
+!/results/tabllm/
+results/tabllm/*
+!/results/tabllm/diabetes/
+results/tabllm/diabetes/*
+!/results/tabllm/diabetes/README.md
+
 # Keep this notebook
 !/results/compare_model_metrics.ipynb
 
