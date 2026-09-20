@@ -14,12 +14,22 @@ results/*
 .agents
 article.md
 
-# Keep result documentation while ignoring generated result files
+# Keep TabLLM documentation and confusion matrices while ignoring raw responses
 !/results/tabllm/
 results/tabllm/*
 !/results/tabllm/*/
 results/tabllm/*/*
 !/results/tabllm/*/README.md
+!/results/tabllm/*/*/
+results/tabllm/*/*/*
+!/results/tabllm/*/*/*_CM.png
+
+# keep confusion matrices
+!results/*/
+results/*/*
+!/results/*/*_CM.png
+
+
 
 # Keep this notebook
 !/results/compare_model_metrics.ipynb
