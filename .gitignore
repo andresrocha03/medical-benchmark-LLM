@@ -15,6 +15,10 @@ results/*
 article.md
 
 # Keep result documentation while ignoring generated result files
+!/results/tabllm/
+results/tabllm/*
+!/results/tabllm/*/
+results/tabllm/*/*
 !/results/tabllm/*/README.md
 
 # Keep this notebook
