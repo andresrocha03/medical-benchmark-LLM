@@ -77,6 +77,55 @@ than silently removed from evaluation. Meditron's JSON responses are also not
 direct label-only answers, but they contain `positive` and are therefore parsed
 as positive.
 
+## Recorded execution times
+
+The following values are the training and prediction times stored by the
+benchmark. Total time is their sum. TabLLM training time is zero because its
+evaluation is zero-shot.
+
+### Tabular models
+
+| Model | Training time | Prediction time | Total time |
+|---|---:|---:|---:|
+| LightGBM | 0.655 s | 0.006 s | 0.660 s |
+| XGBoost | 3.895 s | 0.004 s | 3.899 s |
+| TabICL v2 | 6.192 s | 0.111 s | 6.303 s |
+| TARTE + XGBoost | 10.676 s | 0.666 s | 11.342 s |
+| TabPFN | 59.092 s | 1.760 s | 60.851 s |
+
+LightGBM has the shortest tabular training time and total time. XGBoost has
+the shortest tabular prediction time. TabPFN has the longest tabular training,
+prediction, and total times.
+
+### TabLLM configurations
+
+| Model | Serialization | Training time | Prediction time | Total time |
+|---|---|---:|---:|---:|
+| BioMistral | JSON | 0 s | 76.912 s | 76.912 s |
+| BioMistral | LLM | 0 s | 72.618 s | 72.618 s |
+| BioMistral | Text template | 0 s | 74.924 s | 74.924 s |
+| Llama 3 | JSON | 0 s | 68.381 s | 68.381 s |
+| Llama 3 | LLM | 0 s | 60.713 s | 60.713 s |
+| Llama 3 | Text template | 0 s | 63.948 s | 63.948 s |
+| Meditron | JSON | 0 s | 187.914 s | 187.914 s |
+| Meditron | LLM | 0 s | 183.703 s | 183.703 s |
+| Meditron | Text template | 0 s | 188.368 s | 188.368 s |
+| Mistral | JSON | 0 s | 81.522 s | 81.522 s |
+| Mistral | LLM | 0 s | 77.666 s | 77.666 s |
+| Mistral | Text template | 0 s | 79.263 s | 79.263 s |
+
+Llama 3 with LLM serialization has the shortest TabLLM prediction and total
+time (60.713 s). Meditron with text-template serialization has the longest
+(188.368 s). The range within each model is 4.294 s for BioMistral, 7.668 s
+for Llama 3, 4.664 s for Meditron, and 3.856 s for Mistral across the three
+serialization methods.
+
+Across all reported diabetes runs, LightGBM has the shortest total time
+(0.660 s), and Meditron with text-template serialization has the longest total
+time (188.368 s). Tabular-model prediction times range from 0.004 s to 1.760 s;
+TabLLM prediction times range from 60.713 s to 188.368 s for the same 821 test
+records.
+
 ## Interpretation
 
 - The imbalance favors models that predict the negative class when accuracy is
@@ -89,3 +138,7 @@ as positive.
 - Most TabLLM configurations do not demonstrate meaningful class separation:
   they produce a constant or nearly constant label. Meditron's two high-invalid
   runs additionally fail to follow the required output format.
+- Among the tabular models, LightGBM has the shortest total time and TabPFN has
+  the longest. Among the TabLLM configurations, Llama 3 with LLM serialization
+  has the shortest total time and Meditron with text-template serialization has
+  the longest.
