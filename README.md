@@ -65,8 +65,7 @@ Corrections from original project:
 
 - [TabLLM](https://arxiv.org/pdf/2210.10723)
 
-- [TabLLM](https://www.rubrik.com/blog/ai/23/getting-the-best-zero-
-shot-performance-on-your-tabular-data-with-llms)
+- [TabLLM](https://www.rubrik.com/blog/ai/23/getting-the-best-zero-shot-performance-on-your-tabular-data-with-llms)
 
 - [Heart Dataset](http://archive.ics.uci.edu/dataset/45/heart+disease)
 
@@ -76,8 +75,7 @@ shot-performance-on-your-tabular-data-with-llms)
 
 - [LLaMA3 Instruct](https://huggingface.co/meta-llama)
 
-- [Mistral 7B Instruct](https://huggingface.co/mistralai/Mistral-7B-Instruct-
-v0.2)
+- [Mistral 7B Instruct](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.2)
 
 - [Meditron](https://huggingface.co/epfl-llm/meditron-7b)
 
